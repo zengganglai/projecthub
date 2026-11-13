@@ -1,0 +1,16 @@
+# CPython 3.14.10 / Windows x64 上已验证的运行依赖及其传递依赖。
+annotated-doc==0.0.6
+annotated-types==0.8.0
+anyio==4.16.0
+click==8.5.1
+fastapi==0.162.5
+h11==0.16.0
+idna==3.20
+opentelemetry-api==1.45.2
+pydantic==2.14.3
+pydantic-core==2.50.4
+rfc8785==0.1.4
+starlette==1.10.0
+typing-extensions==4.16.0
+typing-inspection==0.4.5
+uvicorn==0.54.0

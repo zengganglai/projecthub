@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.test_artifacts/
+.venv/
+data/
+build/
+dist/
+*.egg-info/
+.codex/
+.agents/
+.aws/
+.env
+.env.*
+!.env.example

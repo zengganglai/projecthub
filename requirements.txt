@@ -1,0 +1,2 @@
+# 兼容标准运行依赖入口。
+-r requirements.lock

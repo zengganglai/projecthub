@@ -1,0 +1,4 @@
+# 与 requirements.lock 配套安装的可选远控依赖及其传递依赖。
+cffi==2.1.1
+cryptography==50.0.2
+pycparser==3.12

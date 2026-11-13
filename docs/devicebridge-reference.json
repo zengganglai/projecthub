@@ -1,0 +1,439 @@
+{
+  "captured_date": "2026-11-12",
+  "source": "Z:\\Code\\DeviceBridge",
+  "basis": "current working tree, not HEAD",
+  "product_python_files": 117,
+  "product_python_lines": 10851,
+  "existing_tests": {
+    "passed": 29,
+    "environment": "CPython 3.14.10 / Windows x64",
+    "scope": "existing source tests only"
+  },
+  "api_routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/authorized-files/{authorization_code}",
+      "source": "device_bridge/http_api/routes/download_authorization_routes.py",
+      "line": 52
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/authorized-files/{authorization_code}/download",
+      "source": "device_bridge/http_api/routes/download_authorization_routes.py",
+      "line": 64
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/authorized-files/{authorization_code}/json",
+      "source": "device_bridge/http_api/routes/download_authorization_routes.py",
+      "line": 58
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/control-sessions",
+      "source": "device_bridge/http_api/routes/remote_routes.py",
+      "line": 73
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/control-sessions/by-request/{request_id}",
+      "source": "device_bridge/http_api/routes/remote_routes.py",
+      "line": 89
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/control-sessions/by-request/{request_id}",
+      "source": "device_bridge/http_api/routes/remote_routes.py",
+      "line": 85
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/control-sessions/{session_id}",
+      "source": "device_bridge/http_api/routes/remote_routes.py",
+      "line": 98
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/control-sessions/{session_id}/renew",
+      "source": "device_bridge/http_api/routes/remote_routes.py",
+      "line": 94
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/devices",
+      "source": "device_bridge/http_api/routes/remote_routes.py",
+      "line": 64
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/me/password",
+      "source": "device_bridge/http_api/routes/user_routes.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/permissions",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 43
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/permissions",
+      "source": "device_bridge/http_api/routes/user_routes.py",
+      "line": 74
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 55
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 80
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/projects/{model_id}",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 91
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{model_id}/versions",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 67
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 103
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 116
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/config",
+      "source": "device_bridge/http_api/routes/project_config_routes.py",
+      "line": 17
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/curves/template",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 128
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/curves/upload",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 41
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/curves/{file_id}",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 33
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/curves/{file_id}/delete",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 63
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/curves/{file_id}/position",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 24
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/download-authorizations",
+      "source": "device_bridge/http_api/routes/download_authorization_routes.py",
+      "line": 23
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/download-authorizations",
+      "source": "device_bridge/http_api/routes/download_authorization_routes.py",
+      "line": 34
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/download-authorizations/{authorization_id}",
+      "source": "device_bridge/http_api/routes/download_authorization_routes.py",
+      "line": 44
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/files/{category}",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 203
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/files/{category}/json",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 156
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/files/{category}/{file_id}/download",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 175
+    },
+    {
+      "method": "HEAD",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/files/{category}/{file_id}/download",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 187
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/files/{category}/{file_id}/json",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 147
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/firmwares/check",
+      "source": "device_bridge/http_api/routes/file_routes.py",
+      "line": 136
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/firmwares/upload",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 47
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/firmwares/{file_id}/delete",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 74
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/internal-files/upload",
+      "source": "device_bridge/http_api/routes/managed_file_routes.py",
+      "line": 20
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/internal-files/{file_id}",
+      "source": "device_bridge/http_api/routes/managed_file_routes.py",
+      "line": 37
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/public-files/upload",
+      "source": "device_bridge/http_api/routes/managed_file_routes.py",
+      "line": 29
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/projects/{model_id}/versions/{version_id}/public-files/{file_id}",
+      "source": "device_bridge/http_api/routes/managed_file_routes.py",
+      "line": 44
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/remote-control/health",
+      "source": "device_bridge/http_api/routes/remote_routes.py",
+      "line": 103
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/reviews",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 82
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/reviews/{review_id}",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 90
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/reviews/{review_id}/approve",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 100
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/reviews/{review_id}/download",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 95
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/reviews/{review_id}/reject",
+      "source": "device_bridge/http_api/routes/review_routes.py",
+      "line": 108
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users",
+      "source": "device_bridge/http_api/routes/user_routes.py",
+      "line": 52
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/users",
+      "source": "device_bridge/http_api/routes/user_routes.py",
+      "line": 57
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/users/{user_id}",
+      "source": "device_bridge/http_api/routes/user_routes.py",
+      "line": 69
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/users/{user_id}",
+      "source": "device_bridge/http_api/routes/user_routes.py",
+      "line": 63
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users/{user_id}/permissions",
+      "source": "device_bridge/http_api/routes/user_routes.py",
+      "line": 79
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/users/{user_id}/permissions",
+      "source": "device_bridge/http_api/routes/user_routes.py",
+      "line": 85
+    }
+  ],
+  "source_sha256": {
+    "device_bridge/__init__.py": "5891f7f8cf7a4e6334e01d4ccc44c864ff72010ffd847c889d956f565310f0b6",
+    "device_bridge/application/__init__.py": "18ae155625b1cce0dc0e50e15216b4caab9ae2db8b90bb6699f4e9b9552ab24e",
+    "device_bridge/application/app.py": "6f8f1bd5c77056dc55f0c6011c92b7fc11de8e9ccfa6f67e5a8b691594c8476c",
+    "device_bridge/application/app_values.py": "a9e325dd400fcda4ab71107fcb5615774e387dbfbf8ea2db8ef7b972393c45a0",
+    "device_bridge/application/asgi_entry.py": "fbdb556b56665333f497e7bef3026268dae1a6a0bee26428c7010abc3a4145ec",
+    "device_bridge/application/process_control.py": "98d98d646dd0df5a9b4099779566fc15e2a5ca5d1899aefdc2d6f94fae2f6e9a",
+    "device_bridge/application/process_identity.py": "48a28494ea625e7db51ae5f4732783f10a7bed91f0ac3d736afeb32e6e978415",
+    "device_bridge/config/__init__.py": "f866960669ee0aafab82e79ab973429ab685735111108f94e610e55400da7f98",
+    "device_bridge/config/config_defaults.py": "576e4f916613ec62e0dfc7e6c4a1af488824e0dfebfe236103ebc84815578b68",
+    "device_bridge/config/config_errors.py": "8821eee77f0dbf8d445ad4fa5caec143ebc56a25410ac3c8e6a6a6dfd44b064a",
+    "device_bridge/config/config_service.py": "09184c0578cbb6f2bcdb008fe90ef4adb09648c31843172adeef10d9cde0822a",
+    "device_bridge/config/config_validation.py": "fc0659a4e0c1c9631b35e6811ac58cc5373b07d145970850f954988eeffd5f1f",
+    "device_bridge/database/__init__.py": "dd1a8361975425dae65ba7d096c7de1960b335947edb457fddb58b40910d68b4",
+    "device_bridge/database/access_values.py": "93117c943e1de4862f195a883f915934264209941c98ce6c1eb1845c182c4caf",
+    "device_bridge/database/database_connection.py": "0107f66fe15632c0e450b605e861469c770b139802b6e4295fce9d4ba67951ce",
+    "device_bridge/database/database_errors.py": "7bafdd91d81894700d71205a0589c276c3936ee33af6ab21b9a804e22803d7a7",
+    "device_bridge/database/database_paths.py": "c9b93541281aa10432e24e94c3e435d1ef393d3e83fc3f0907fac3611252aba2",
+    "device_bridge/database/database_service.py": "37dac53df1d7809e868444e5e5d468d401cfb58ea27cfc3b41baaa0147bea19d",
+    "device_bridge/database/database_time.py": "6a965fc3dcf26e465b27a6cc16d4780c924ac9e6e7185efa18788b195f78f6ba",
+    "device_bridge/database/database_transactions.py": "e1945f64d91162cd7a681f731f21ce44692ffe3248545529ee9caa17ece61c57",
+    "device_bridge/database/database_values.py": "179f088ca2c63b34649ceed97d5ac75ab2b3c4358671b2fbe67b20cd244c5bd7",
+    "device_bridge/database/firmware_models.py": "2022c89a9094adf485a43ae098c536564714f7d1210487303017359c1ff3badb",
+    "device_bridge/database/firmware_versions.py": "da02d14da42b40dcc941461739dafacd58c3863a73f6bf4547400017c74ac90c",
+    "device_bridge/database/maintenance/__init__.py": "3e418f0e6a1a93bf8b352f2258352912f57d443e3fcdc671db65cef38d6296d1",
+    "device_bridge/database/maintenance/catalog_seed.py": "75b7bf4f94c74c03015613084d6b510edc32394faed3b6d75b54399ff6cea55f",
+    "device_bridge/database/maintenance/curve_order_schema.py": "c80ccc5ea3a031514ed53a36eeccb1cd9811040267ebf8af17d25cdb0a662ecb",
+    "device_bridge/database/maintenance/database_integrity.py": "0a6745370053db1c0f4dce8232589df0eede324612900fa36e4b23e2d2d64542",
+    "device_bridge/database/maintenance/database_migration.py": "0b1eb8cb7a1a05602dd598761f9eedd117dd1be1454f903573b1f5cae3c130e2",
+    "device_bridge/database/maintenance/file_schema.py": "9097567d6f2589fafe35397120413a6d68a76f96bddc48ab3f7e524b728096ad",
+    "device_bridge/database/maintenance/firmware_models_schema.py": "021ba7119d69945d65ec820e24399850c9d1b81002916a30c597bfacb0d361a7",
+    "device_bridge/database/migrations/__init__.py": "3e418f0e6a1a93bf8b352f2258352912f57d443e3fcdc671db65cef38d6296d1",
+    "device_bridge/database/migrations/env.py": "939804f659a4281377db88d27d65c54b518145d47852420ac7be3c0d9442496f",
+    "device_bridge/database/migrations/versions/0001_initial_schema.py": "5fce4cdd88a5b02a5ac64980d365fd16aced098eaca8d1de2fec4c16081a9efa",
+    "device_bridge/database/migrations/versions/0002_firmware_supported_models.py": "f85fb90efad48be2b98868ff32564ebe87db6353eefd1127c6e6cfda2126b530",
+    "device_bridge/database/migrations/versions/__init__.py": "b0c55e567a51f7194f83f0ef7d9e552b5c36004a624ad2437273fe3c4a99f073",
+    "device_bridge/database/models/__init__.py": "93f79edefd928bf893f3ae230a8d7a0473146cd2b5c7b2967e3fff6b2ca39936",
+    "device_bridge/database/models/download_authorization_model.py": "a45e4e7be6f94127a2236c0b985ea3c56ffc75abadbedb087c48635773c3144c",
+    "device_bridge/database/models/file_models.py": "5910d134c024db2ce89f307a18c59a9a67488892f9e38d9ec081436099f4f26d",
+    "device_bridge/database/models/model_base.py": "ab370181befa285af9d5bb6ef34f3d26e6a1d88cecc90a92deb73f9dc8e0686c",
+    "device_bridge/database/models/project_model.py": "36878c3333ba92531814a50e1b757773685380aefa4e2428110ad3a8d36faf8a",
+    "device_bridge/database/models/review_model.py": "7d758a66c97e7132d8fab09ff6b344a358afa3c979f27070b3960d0af0391814",
+    "device_bridge/database/models/user_model.py": "ab27109286beb285476864121b6b703e0e42c740bfb2df1d0517e5835876c375",
+    "device_bridge/database/project_permissions.py": "9acffe311001295edac7ef666e7a4c9164dd6e1c5b85bcfef1c25dca89cb747a",
+    "device_bridge/database/review_values.py": "13ba73293527d77063bd1ae529ca8950b96e583499d2214dfc932be9c4d52de1",
+    "device_bridge/database/runtime_guard.py": "d78e100ae0c4ac63a235036f37fb3c00c61da3975ac78510eae6d38ec06342fb",
+    "device_bridge/database/stores/__init__.py": "3e418f0e6a1a93bf8b352f2258352912f57d443e3fcdc671db65cef38d6296d1",
+    "device_bridge/database/stores/access_store.py": "3af2ac94150daf317ee19f57c1ae672b3e2aad75efd3411d0e96fc11ae4d6fb7",
+    "device_bridge/database/stores/catalog_store.py": "0b03b5c0f22f239b61a26372b560b037ac1e27a3aef92b7b843b0ed378b0a94e",
+    "device_bridge/database/stores/curve_order_store.py": "d1a0b9bfe3ab44cadf6c72a5e26176a3989fb9a5de1bc123558c0524c0637a0c",
+    "device_bridge/database/stores/download_authorization_store.py": "d6306ccc822d4c91e5f14e360a310597729049030b2f923e94485b0436f71ade",
+    "device_bridge/database/stores/file_store.py": "1620a036b20c65464414b0fc9be1bc43032e1e6ba2fe01def97e2c1893447e29",
+    "device_bridge/database/stores/managed_file_store.py": "4afdf8f82cefc11e354bee15b5523c95eece8e0c0d3cd05420f81640fe28d0f0",
+    "device_bridge/database/stores/project_store.py": "d21705a1ef3703f99cdbe3b72b8e5cee38a25999f4a01bab803e09307bb4b405",
+    "device_bridge/database/stores/review_store.py": "5605e26140de58ca1f2ec1ce0897d975dae86606022f47421e8885e8490c04e9",
+    "device_bridge/database/stores/user_store.py": "cecc89f1df09c8cdeadb800d2a807cdab033bbb33f9222de06b90edb86ed8a2a",
+    "device_bridge/file_service/__init__.py": "9646f96f6244d9c36297752cb78e155c46383bef77ab6022ae4a6f77b6663404",
+    "device_bridge/file_service/curve_update.py": "6743e24bdb93a3c0e226f6cbe963dd1753fe2c015466be734d5cc1c1935519bd",
+    "device_bridge/file_service/download_authorization.py": "9041765fa52d25ee7840888302c0d6ec789d77dfe6df88c6204bcf91ffdf3d67",
+    "device_bridge/file_service/file_integrity.py": "147329d47837acd26c8da1dee9c0e0dcd187f238da0efbfa496f7892fc5175c0",
+    "device_bridge/file_service/file_lookup.py": "3d30c293f3af771ab1c65a785a77bd79fa7e65067fe39ac4845c13d83aedf058",
+    "device_bridge/file_service/file_paths.py": "9a419fbf8268441be24712e3d9d38179bce1fa0167ddca68801c30aa301f4d5a",
+    "device_bridge/file_service/file_results.py": "1d784bd5d1d3758b787ef908b82cd5fe3f1ce6503001b296e2c8683087df3023",
+    "device_bridge/file_service/file_service.py": "9aed3dfbb862ab68881ab6a70a22dc3c4009c5e4107610ad82c09c5f261edda2",
+    "device_bridge/file_service/file_sync.py": "92497ed3abe6da28208229f9abbccb5c4a2cf2d332e0a07b08820df0d1ca7c1a",
+    "device_bridge/file_service/file_transfer.py": "771499fdc72dd037c7f1748ab35ec8d2df097919f288b76f705f0d9401c812b9",
+    "device_bridge/file_service/json_validation.py": "3d6efff5eec974fe49da65bb8207ae4fa0a39b793e2f83b6da49bad8c8a401c7",
+    "device_bridge/file_service/managed_file_operations.py": "ef47d7af300a29f9c4ed597d91602f887a9de0152d6939893fda2b013aacf0fd",
+    "device_bridge/file_service/managed_file_recovery.py": "07b4e7f352f3827ee3a270283f1d2ac4f4169d1643fc7536f4c1cc7e2d51f196",
+    "device_bridge/file_service/project_operations.py": "d4f40b928d9119e317b710f8ecdbb3e687cc65074bac2f8f7e1116f2d42576d8",
+    "device_bridge/file_service/project_recovery.py": "bccc6ec36e4ea61c3f4f76e52f9d33ae509f57fc844468c22f33c3bdb81af80e",
+    "device_bridge/file_service/review_deletion.py": "a9766bcc3c66fef41e497506c44db8b30974209baa882e3b9d78e0189cc7d71c",
+    "device_bridge/file_service/review_operations.py": "388d7b7df585396f7b544c6c92690295caf20158a7cf994fcd3bf68edb8260d5",
+    "device_bridge/file_service/review_recovery.py": "0514ec31a92f03ad200b4bbc99bc23849ef26ec60a740d43e7235443797e7e93",
+    "device_bridge/file_service/upload_transfer.py": "71fb2cf20d6259b4a10bf6d8cf7516af0e3b9614954d0cdc7da2d3fad02a7f14",
+    "device_bridge/http_api/__init__.py": "5c046116064e7a1eaea6ba8a2b6525f9b150217f34285c9a14c11e8524439304",
+    "device_bridge/http_api/http_app.py": "a62d654666a5ac93baf5c082849c1cd2fbfd7abee17715a316ba6c0f166114b8",
+    "device_bridge/http_api/http_errors.py": "ec4d5f19426e62c2d3e3265410075cbe2cc9a12a95a81663274e67a24817efcc",
+    "device_bridge/http_api/http_exceptions.py": "1a389f026732deb4180d94d3532ac912008e68a4642bb7d5486d2b9df70fcc99",
+    "device_bridge/http_api/json_protocol.py": "ce04e0fc422f0927a6fa54ed960450a231a787a087f827ec789a89935d96ff5a",
+    "device_bridge/http_api/middleware/__init__.py": "61402325932d1c7a670d84f91cbe1ec345745e8feedd528fc8c62376d52fb22a",
+    "device_bridge/http_api/middleware/host_filter.py": "3a2b096b8f8839dcfb9ff5fd3a38429edf74b8f74b49ecf9d0c9291132527d8d",
+    "device_bridge/http_api/middleware/request_context.py": "e307f7727e2fef8291586b404f9b19a9fec9daacb1d59fd4e8754b344f9d5675",
+    "device_bridge/http_api/middleware/request_limit.py": "58f65ca1ce46c2e07a01341afd93028eff0e6a9556f125c8028884438f6feb4a",
+    "device_bridge/http_api/project_target.py": "08fce7cbfda9ea5fe017b8451a15cc85165632536f44760f90f0ec78b362255a",
+    "device_bridge/http_api/request_body.py": "cb8d17a03a7933183b13a160d19ff99020c39ed4024db065278d41ec1971e5a2",
+    "device_bridge/http_api/request_docs.py": "f3e62e0eab067660ef847bbe9f4137c09d4ade5ee6078a3483a9792fcc209059",
+    "device_bridge/http_api/request_payload.py": "4f2072f1a62401c71c4075ab062ebee8f17f324c42186625cb005e40677c361c",
+    "device_bridge/http_api/routes/__init__.py": "d70a923b703772416d3640ab508f6d957df95e7cd586572a4f4d55f6852ec174",
+    "device_bridge/http_api/routes/download_authorization_routes.py": "896034561c5e3af141f21b1a63fc28ea3aee588fb07e6084e65c78b0f6868e2e",
+    "device_bridge/http_api/routes/file_routes.py": "e8f7402ac2362403b94f881e1995b2130733d370125d2184b87dea1c2f18a376",
+    "device_bridge/http_api/routes/file_support.py": "73bd6471d8c08a3cc2373c5973ac7740dc63eeee31818a889cad19ade152e3ea",
+    "device_bridge/http_api/routes/managed_file_routes.py": "0a81906a9f7377dc1b2ef4e105e70f962a447567f310b47fa6d6eda6cdb03e95",
+    "device_bridge/http_api/routes/project_config_routes.py": "5d14fc1ceef50c4a25dac7bd6ab477673c49911a6f0592fe6569246441d8ac2a",
+    "device_bridge/http_api/routes/remote_routes.py": "70f4b974b50bee38c3dec289566b6f9e1f83a732faf0cbeea4c205cce7566128",
+    "device_bridge/http_api/routes/review_routes.py": "d2c5391a00e00601247c157ea28a02d11ab6f03d6c34eb9ac65a83ae29b03650",
+    "device_bridge/http_api/routes/user_routes.py": "b786e21e27355b95cbdd72b3155d4e1ee936f6732e23353ae980f4094fbc8602",
+    "device_bridge/http_api/swagger_page.py": "829d01b6e1ad1024920b03fe9cf2a236420502da6a19bc1e870a0815bf5ca83e",
+    "device_bridge/http_api/user_auth.py": "bf1f55d238df586cc85b730c2c17a17ca3316dbca07e42555f0fca8bd9267570",
+    "device_bridge/json_codec.py": "59eafaaf8af4b18e3c9903bc467cafbe017d2da972a2d7fee77ae435fdf01fb2",
+    "device_bridge/permission_catalog.py": "013cd94b6c6d007bed1d5b2db0b2feea2af2602e75a32e6160fedcea7e9cf68d",
+    "device_bridge/remote_control/__init__.py": "ca026174e2c87247fc38f9e68e28895530d522584e981071140679d29f481e2e",
+    "device_bridge/remote_control/control_sessions.py": "9a1ad23e813288ed100e1388c67a1e59cc25e0cfc8cb469131a1471362f7aafc",
+    "device_bridge/remote_control/device_registry.py": "fc8dea0a2abdd438f73b75d38f71c8843d6af222b4c2fcb1ca318c0e24e9a67f",
+    "device_bridge/remote_control/frp_protocol.py": "6f0f9de7c314f15a8930d9c47b8fb2bbf2ff882271c201492e000a5817ede244",
+    "device_bridge/remote_control/remote_server.py": "7192d3a66ce5b8a62d580d4b6b356431c15f8caa11e16199f4194f0f157fc4f3",
+    "device_bridge/remote_control/remote_service.py": "53b0ce89adb170c15fca6f34c9468f3d84581c6fb864a282cabab3e2eaa4fd3e",
+    "device_bridge/remote_control/remote_values.py": "d69899bae1e34c0ff201ab536bc7b0717fed009c8743513512695cb0e8b0c108",
+    "device_bridge/remote_control/tcp_relay.py": "57883e492e733539991dba4201521fe1ca0c7d0d3b6fcca53e06c90dae90393d",
+    "device_bridge/runtime_support/__init__.py": "a266b13743eb58488affe5d2247c8883e6ccd47b00af3d8fb65f75149b90c73d",
+    "device_bridge/runtime_support/async_cleanup.py": "10562780f7cbc5f6450c20c12c906ba79b657b8f9ded2c5952181fcefc896950",
+    "device_bridge/runtime_support/windows_event_loop.py": "ba96b34f7b710253ecde41e2a94ad2bf84653e85c2849542c4880d13b8e25070",
+    "device_bridge/users/__init__.py": "fab89908bd5ff83836f9193296b2892051319836997c2c0143edcf4094259a3a",
+    "device_bridge/users/access_state.py": "d304ab80d537521074aebd6b72aa4fe9598afbe7de9a21fcb684fb22a6202ae0",
+    "device_bridge/users/permissions.py": "d55b0f1aa1ed7c486d5a6d426e8d8aa0ad3809d551eec1522c120606483d21c1",
+    "device_bridge/users/user_management.py": "35f3f27343cba174cea474e6d28ded0039ad279c94e9153846d760c557b976e5",
+    "device_bridge/users/user_service.py": "294341affad2e034a2b3ed34eccde9984cf7914e3b678a793124109d38a606be",
+    "device_bridge/users/user_values.py": "7cf5ca54fb19fd4ef10a9299820c0884062e65c08bf45309e4197878f66c6be4"
+  }
+}
