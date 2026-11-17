@@ -7,6 +7,9 @@ from projecthub.storage import safe_path
 
 from .rules import TABLES, version_key, version_range
 
+# SQLite LIKE 的 ASCII 不分大小写语义，非 ASCII 保持精确。
+_ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+
 
 class FileCatalog:
     """文件查询和读取；资源由所属文件服务持有。"""
@@ -20,6 +23,7 @@ class FileCatalog:
         project_id=None,
         category=None,
         file_name=None,
+        curve_name=None,
         file_type=None,
         q=None,
         sha256=None,
@@ -33,39 +37,38 @@ class FileCatalog:
             filters = {"file_name": file_name, "sha256": sha256, "path": path}
             if any(
                 value is not None and not isinstance(value, str)
-                for value in (*filters.values(), file_type, q)
+                for value in (*filters.values(), curve_name, file_type, q)
             ):
                 raise HubError("INVALID_FILTER", "筛选值须为字符串。")
+            if curve_name is not None and category != "curve":
+                raise HubError("INVALID_FILTER", "curve_name 仅适用于曲线分类。")
+            search_text = q.translate(_ASCII_LOWER) if q else None
             kinds = [category] if category is not None else list(TABLES)
             records = []
             for kind in kinds:
                 table = files._table(kind)
+                type_key = {"curve": "curve_type", "firmware": "firmware_type"}.get(kind, "file_type")
                 clause, params = (
                     (" WHERE project_id=?", (project_id,)) if project_id is not None else ("", ())
                 )
                 for raw in files.db.query(f"SELECT * FROM {table}{clause}", params):
                     row = files._decorate(kind, raw)
-                    type_key = {"curve": "curve_type", "firmware": "firmware_type"}.get(kind, "file_type")
                     if any(value is not None and row[key] != value for key, value in filters.items()):
+                        continue
+                    if curve_name is not None and curve_name not in row["curve_name"]:
                         continue
                     if file_type is not None and row[type_key] != file_type:
                         continue
-                    searchable = [
-                        row["project"],
-                        row["project_version"],
-                        row["file_name"],
-                        row[type_key],
-                        row.get("description", row.get("release_notes", "")),
-                    ]
-
-                    # SQLite LIKE 的 ASCII 不分大小写语义，非 ASCII 保持精确。
-                    def fold_ascii(text):
-                        return text.translate(
-                            str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
-                        )
-
-                    if q and not any(fold_ascii(q) in fold_ascii(text) for text in searchable):
-                        continue
+                    if search_text:
+                        searchable = [
+                            row["project"],
+                            row["project_version"],
+                            row["file_name"],
+                            row[type_key],
+                            row.get("description", row.get("release_notes", "")),
+                        ]
+                        if not any(search_text in text.translate(_ASCII_LOWER) for text in searchable):
+                            continue
                     records.append(row)
             key = (
                 (lambda row: (row["project"], row["project_version"], row["sort_order"], row["id"]))
@@ -73,6 +76,19 @@ class FileCatalog:
                 else (lambda row: (row["path"], row["category"], row["id"]))
             )
             return {"files": sorted(records, key=key), "count": len(records)}
+
+    def list_curve_names(self, project_id, *, actor):
+        files = self._files
+        with files.operation():
+            files.permissions.require(actor, "curve.read", project_id)
+            names = [
+                row["curve_name"]
+                for row in files.db.query(
+                    "SELECT curve_name FROM curve_configs WHERE project_id=? ORDER BY curve_name",
+                    (project_id,),
+                )
+            ]
+            return {"names": names, "count": len(names)}
 
     def check_firmware(self, project_id, current_version, *, actor=None):
         files = self._files
@@ -141,12 +157,13 @@ class FileCatalog:
             return self._read_fixed(f"{row['name']}/{row['version']}/config.json", "PROJECT_CONFIG")
 
     def read_curve_template(self, project_id, *, actor=None):
+        """从版本所属型号目录读取共享模板，权限仍按该型号检查。"""
         files = self._files
         with files.operation():
             if actor is not None:
                 files.permissions.require_file_download(actor, "curve", project_id)
             row = files._project(project_id)
-            return self._read_fixed(f"{row['name']}/{row['version']}/curve/模板.json", "TEMPLATE")
+            return self._read_fixed(f"{row['name']}/模板.json", "TEMPLATE")
 
     def prepare_download(self, file_id, category, project_id, *, actor=None):
         files = self._files

@@ -11,7 +11,6 @@ _HOST_LABEL = re.compile(r"[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?")
 @dataclass(frozen=True, slots=True)
 class RemoteControlConfig:
     enabled: bool = False
-    debug_logging: bool = False
     bind_host: str = "0.0.0.0"
     public_host: str = "127.0.0.1"
     frp_port: int = 8002
@@ -55,9 +54,8 @@ def validate_remote_config(config: RemoteControlConfig) -> None:
     """验证配置结构并抛出 ValueError。是否具备运行凭据由启动时判断。"""
     if type(config) is not RemoteControlConfig:
         raise ValueError("远控配置必须使用 RemoteControlConfig。")
-    for name in ("enabled", "debug_logging"):
-        if type(getattr(config, name)) is not bool:
-            raise ValueError(f"remote_control.{name} 必须为布尔值。")
+    if type(config.enabled) is not bool:
+        raise ValueError("remote_control.enabled 必须为布尔值。")
     for name in ("bind_host", "public_host"):
         if not _host_is_valid(getattr(config, name)):
             raise ValueError(f"remote_control.{name} 必须为 IP 地址或主机名。")

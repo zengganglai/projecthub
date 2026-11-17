@@ -51,7 +51,7 @@ def create_app(settings: AppConfig | None = None) -> FastAPI:
         from projecthub.projects import ProjectService
         from projecthub.remote import RemoteService
         from projecthub.storage import RuntimeLock
-        from projecthub.users import Users
+        from projecthub.users import Users, UserStore
 
         state = app.state
         if state.entered or state.resources:
@@ -65,14 +65,16 @@ def create_app(settings: AppConfig | None = None) -> FastAPI:
             state.resources.append(("lock", guard, False))
             await run_blocking(guard.acquire)
             state.db = Database(settings)
-            state.permissions = Permissions(state.db)
-            state.users = Users(state.db, state.permissions, settings.users.max_users)
+            state.user_store = UserStore(state.db, settings.users.max_users)
+            state.permissions = Permissions(state.db, state.user_store)
+            state.users = Users(state.db, state.permissions)
             state.files = FileService(settings, state.db, state.permissions)
             state.projects = ProjectService(settings, state.db, state.permissions, state.files)
             state.resources.append(("database", state.db, False))
             await run_blocking(state.db.open, initialize=state.files.scan_initial)
+            state.resources.append(("users", state.user_store, False))
+            await run_blocking(state.user_store.initialize)
             await run_blocking(state.permissions.validate)
-            await run_blocking(state.users.validate)
             state.resources.append(("files", state.files, False))
             await run_blocking(state.projects.initialize)
             await run_blocking(state.files.initialize)
@@ -117,7 +119,8 @@ def run(settings=None, *, on_started=None, stop_event=None):
     """同步运行一个 Uvicorn worker；可由受管入口的事件请求优雅停止。"""
     from uvicorn import Config, Server
 
-    settings = resolve_settings(AppConfig() if settings is None else settings)
+    app = create_app(settings)
+    settings = app.state.settings
 
     class ServerWithStop(Server):
         async def startup(self, sockets=None):
@@ -132,7 +135,7 @@ def run(settings=None, *, on_started=None, stop_event=None):
 
     server = ServerWithStop(
         Config(
-            create_app(settings),
+            app,
             host=settings.http.bind_host,
             port=settings.http.port,
             workers=1,

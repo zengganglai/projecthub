@@ -43,6 +43,7 @@ def test_http_end_to_end_files_permissions_and_download(client):
         base + "/curves/upload",
         params={
             "file_name": "sample.json",
+            "curve_name": "test",
             "curve_type": "thermal",
             "description": "test",
             "file_sha256": sha256(raw).hexdigest(),

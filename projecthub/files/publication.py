@@ -322,9 +322,7 @@ def publish_file(
                         fields.get("supported_models", []), ensure_ascii=False
                     )
                     values["uploaded_at"] = review["uploaded_at"]
-                    uploader = files.db.one(
-                        "SELECT name FROM users WHERE id=?", (review["field_info"]["uploaded_by"],)
-                    )
+                    uploader = files.permissions.user_store.get(review["field_info"]["uploaded_by"])
                     values["uploaded_by"] = (
                         uploader["name"] if uploader else str(review["field_info"]["uploaded_by"])
                     )

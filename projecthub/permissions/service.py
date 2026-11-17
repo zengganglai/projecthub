@@ -1,11 +1,8 @@
-"""从数据库当前状态检查身份与权限，并维护账号授权配置。"""
+"""从用户RAM当前状态检查身份与权限，并维护账号授权配置。"""
 
 from __future__ import annotations
 
 import json
-import sqlite3
-from collections.abc import Iterator
-from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from projecthub.contracts import HubError
@@ -19,6 +16,7 @@ from .catalog import (
 
 if TYPE_CHECKING:
     from projecthub.database import Database
+    from projecthub.users import UserStore
 
 
 def _valid_id(value) -> bool:
@@ -26,16 +24,17 @@ def _valid_id(value) -> bool:
 
 
 class Permissions:
-    """展示身份不作为授权依据；授权检查均在数据库锁内重读当前账号。"""
+    """展示身份不作为授权依据；授权检查均在共享锁内读取当前用户RAM，不信任调用方权限快照。"""
 
-    def __init__(self, db: Database) -> None:
+    def __init__(self, db: Database, user_store: UserStore) -> None:
         self.db = db
+        self.user_store = user_store
 
     def validate(self) -> None:
         """启动时核对管理员标记与全部存储授权。"""
         with self.db.lock:
             models = self.model_names()
-            for row in self.db.query("SELECT * FROM users"):
+            for row in self.user_store.all():
                 self.is_admin(row)
                 self.assigned_permissions(row, models)
 
@@ -93,7 +92,7 @@ class Permissions:
     def user(self, user_id: int) -> dict:
         if not _valid_id(user_id):
             raise HubError("INVALID_USER", "用户 ID 无效。")
-        row = self.db.one("SELECT * FROM users WHERE id=?", (user_id,))
+        row = self.user_store.get(user_id)
         if row is None:
             raise HubError("USER_NOT_FOUND", "用户不存在。")
         return row
@@ -101,20 +100,10 @@ class Permissions:
     def current(self, actor: dict) -> dict:
         user_id = actor.get("user_id") if isinstance(actor, dict) else None
         if _valid_id(user_id):
-            row = self.db.one("SELECT * FROM users WHERE id=?", (user_id,))
+            row = self.user_store.get(user_id)
             if row is not None:
                 return row
         raise HubError("PERMISSION_DENIED", "当前身份无权执行此操作。")
-
-    @contextmanager
-    def _write(self) -> Iterator[sqlite3.Connection]:
-        try:
-            with self.db.transaction() as connection:
-                yield connection
-        except sqlite3.IntegrityError as error:
-            raise HubError("USER_CONFLICT", "用户或项目配置与已有记录冲突。") from error
-        except sqlite3.Error as error:
-            raise HubError("USER_STORE_ERROR", "配置操作失败，请重新查询当前配置。") from error
 
     def require_admin(self, actor: dict) -> None:
         with self.db.lock:
@@ -171,7 +160,7 @@ class Permissions:
     def set_user_permissions(
         self, actor: dict, user_id: int, global_permissions, project_permissions
     ) -> dict:
-        with self._write() as connection:
+        with self.user_store.write():
             self.require_admin(actor)
             if not _valid_id(user_id):
                 raise HubError("INVALID_USER", "用户 ID 无效。")
@@ -185,9 +174,8 @@ class Permissions:
             models = self.model_names()
             if any(name not in models for names in projects_to_write.values() for name in names):
                 raise HubError("PROJECT_NOT_FOUND", "授权包含不存在的项目。")
-            connection.execute(
-                "UPDATE users SET permissions=?, project_permissions=? WHERE id=?",
-                ("[]", json.dumps(projects_to_write), user_id),
+            self.user_store.update(
+                user_id, {"permissions": "[]", "project_permissions": json.dumps(projects_to_write)}
             )
             return {
                 "user_id": user_id,

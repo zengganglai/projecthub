@@ -58,12 +58,16 @@ class ProjectService:
     def update_project_model(self, original_name, changes, *, actor):
         """修改型号名称或描述，同步其所有版本的路径及授权。"""
         with self._mutation(actor):
-            return update_project(self.settings, self.db, self.files, original_name, changes, model=True)
+            return update_project(
+                self.settings, self.db, self.permissions, self.files, original_name, changes, model=True
+            )
 
     def update_project(self, project_id, changes, *, actor):
         """修改版本名称或描述，保留版本 ID 并同步关联路径。"""
         with self._mutation(actor):
-            return update_project(self.settings, self.db, self.files, project_id, changes, model=False)
+            return update_project(
+                self.settings, self.db, self.permissions, self.files, project_id, changes, model=False
+            )
 
     def get_project_model(self, model_id, *, actor=None):
         """按型号 ID 查询；传入 actor 时不可见型号与不存在均返回 None。"""

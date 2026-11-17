@@ -44,6 +44,8 @@ class FileSynchronizer:
                 if HISTORY.search(version.name):
                     continue
                 version = safe_path(root, version.relative_to(root).as_posix())
+                if version.name.casefold() == "模板.json" and version.is_file():
+                    continue
                 if not version.is_dir() or project_name(version.name) != version.name:
                     raise HubError("INVALID_PROJECT_NAME", "型号目录内须为版本目录。")
                 connection.execute(
@@ -74,8 +76,6 @@ class FileSynchronizer:
                     if len(parts) < 4 or parts[2] not in TABLES:
                         raise HubError("INVALID_CATEGORY", "文件须位于四种分类目录。")
                     category = parts[2]
-                    if category == "curve" and len(parts) == 4 and path.name.casefold() == "模板.json":
-                        continue
                     if initial and category in ("curve", "firmware"):
                         continue
                     key = (pid, path.name.casefold())

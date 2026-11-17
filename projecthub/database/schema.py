@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-SCHEMA_REVISION = "0002"
+SCHEMA_REVISION = "0004"
 _WHITESPACE = "char(9,10,11,12,13,28,29,30,31,32,133,160,5760,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8232,8233,8239,8287,12288)"
 _ID = "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
 _PROJECT_ID = "project_id INTEGER NOT NULL REFERENCES projects(id)"
@@ -45,11 +45,16 @@ CREATE TABLE projects (
 CREATE TABLE curve_configs (
     {_ID},
     {_PROJECT_ID},
+    curve_name TEXT NOT NULL,
     sort_order INTEGER NOT NULL DEFAULT '1',
     curve_type TEXT NOT NULL DEFAULT '未分类',
     description TEXT NOT NULL DEFAULT '',
     modified_at TEXT NOT NULL DEFAULT '',
-    {_FILE_FIELDS}
+    {_FILE_FIELDS},
+    CONSTRAINT ck_curve_configs_curve_name_not_blank CHECK (length(trim(curve_name, {_WHITESPACE})) > 0),
+    CONSTRAINT ck_curve_configs_file_name_not_blank CHECK (length(trim(file_name, {_WHITESPACE})) > 0),
+    UNIQUE (project_id, curve_name),
+    UNIQUE (project_id, file_name COLLATE NOCASE)
 );
 CREATE INDEX ix_curve_configs_project_type ON curve_configs(project_id, curve_type);
 CREATE INDEX ix_curve_configs_file_name ON curve_configs(file_name);

@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import hmac
-import sqlite3
-from collections.abc import Iterator
-from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from projecthub.contracts import HubError
@@ -57,33 +54,12 @@ def _user_fields(data: dict, *, creating: bool) -> dict:
 
 
 class Users:
-    """维护账号生命周期，身份展示和权限检查由 Permissions 提供。"""
+    """维护账号生命周期；UserStore持有用户RAM与同步持久化，Permissions负责授权。"""
 
-    def __init__(self, db: Database, permissions: Permissions, max_users: int = 100) -> None:
-        if type(max_users) is not int or not 1 <= max_users <= 100:
-            raise HubError("USERS_CONFIGURATION_ERROR", "用户上限须为 1～100。")
+    def __init__(self, db: Database, permissions: Permissions) -> None:
         self.db = db
         self.permissions = permissions
-        self.max_users = max_users
-
-    def _validate_count(self, count: int) -> None:
-        if count > self.max_users:
-            raise HubError("USER_LIMIT_REACHED", f"用户总数不能超过 {self.max_users}。")
-
-    def validate(self) -> None:
-        """启动时核对账号人数上限。"""
-        with self.db.lock:
-            self._validate_count(self.db.one("SELECT count(*) AS total FROM users")["total"])
-
-    @contextmanager
-    def _write(self) -> Iterator[sqlite3.Connection]:
-        try:
-            with self.db.transaction() as connection:
-                yield connection
-        except sqlite3.IntegrityError as error:
-            raise HubError("USER_CONFLICT", "用户或项目配置与已有记录冲突。") from error
-        except sqlite3.Error as error:
-            raise HubError("USER_STORE_ERROR", "配置操作失败，请重新查询当前配置。") from error
+        self.user_store = permissions.user_store
 
     def authenticate(self, name: str, password: str) -> dict:
         if not _nonblank(name) or not _nonblank(password):
@@ -93,7 +69,7 @@ class Users:
         except UnicodeError:
             raise _authentication_failed() from None
         with self.db.lock:
-            row = self.db.one("SELECT * FROM users WHERE name=?", (name,))
+            row = self.user_store.find(name)
             if not _password_matches(row, password):
                 raise _authentication_failed()
             return self.permissions.identity(row)
@@ -102,39 +78,24 @@ class Users:
         with self.db.lock:
             self.permissions.require_admin(actor)
             models = self.permissions.model_names()
-            return [
-                self.permissions.identity(row, models)
-                for row in self.db.query("SELECT * FROM users ORDER BY id")
-            ]
+            return [self.permissions.identity(row, models) for row in self.user_store.all()]
 
     def create_user(self, actor: dict, data: dict) -> dict:
-        with self._write() as connection:
+        with self.user_store.write():
             self.permissions.require_admin(actor)
             values = _user_fields(data, creating=True)
-            columns = ", ".join(values)
-            placeholders = ", ".join("?" for _ in values)
-            user_id = connection.execute(
-                f"INSERT INTO users ({columns}) VALUES ({placeholders})", tuple(values.values())
-            ).lastrowid
-            self._validate_count(self.db.one("SELECT count(*) AS total FROM users")["total"])
-            return self.permissions.identity(self.permissions.user(user_id))
+            return self.permissions.identity(self.user_store.create(values))
 
     def update_user(self, actor: dict, user_id: int, data: dict) -> dict:
-        with self._write() as connection:
+        with self.user_store.write():
             self.permissions.require_admin(actor)
             if not _valid_id(user_id):
                 raise HubError("INVALID_USER", "用户 ID 无效。")
             values = _user_fields(data, creating=False)
-            assignments = ", ".join(f"{column}=?" for column in values)
-            updated = connection.execute(
-                f"UPDATE users SET {assignments} WHERE id=?", (*values.values(), user_id)
-            )
-            if not updated.rowcount:
-                raise HubError("USER_NOT_FOUND", "用户不存在。")
-            return self.permissions.identity(self.permissions.user(user_id))
+            return self.permissions.identity(self.user_store.update(user_id, values))
 
     def delete_user(self, actor: dict, user_id: int) -> None:
-        with self._write() as connection:
+        with self.user_store.write() as connection:
             self.permissions.require_admin(actor)
             row = self.permissions.user(user_id)
             if self.permissions.is_admin(row):
@@ -152,10 +113,10 @@ class Users:
             connection.execute(
                 "UPDATE pending_reviews SET reviewer_user_id=NULL WHERE reviewer_user_id=?", (user_id,)
             )
-            connection.execute("DELETE FROM users WHERE id=?", (user_id,))
+            self.user_store.delete(user_id)
 
     def change_password(self, actor: dict, current_password: str, new_password: str) -> None:
-        with self._write() as connection:
+        with self.user_store.write():
             row = self.permissions.current(actor)
             if not _password_matches(row, current_password):
                 raise _authentication_failed()
@@ -165,4 +126,4 @@ class Users:
                 new_password.encode("utf-8")
             except UnicodeError:
                 raise HubError("INVALID_DATA", "新密码包含无效字符。") from None
-            connection.execute("UPDATE users SET password=? WHERE id=?", (new_password, row["id"]))
+            self.user_store.update(row["id"], {"password": new_password})

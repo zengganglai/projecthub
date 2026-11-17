@@ -14,7 +14,7 @@ from projecthub.files import FileService
 from projecthub.permissions import Permissions
 from projecthub.projects import ProjectService
 from projecthub.storage import RuntimeLock
-from projecthub.users import Users
+from projecthub.users import UserStore
 
 
 def _metadata(path: Path | None) -> dict:
@@ -40,15 +40,16 @@ def run_maintenance(*, synchronize: bool, argv: list[str] | None = None) -> int:
         settings = resolve_settings(supplied)
         with RuntimeLock(settings), ExitStack() as cleanup:
             db = Database(settings)
-            permissions = Permissions(db)
-            users = Users(db, permissions, settings.users.max_users)
+            user_store = UserStore(db, settings.users.max_users)
+            permissions = Permissions(db, user_store)
             files = FileService(settings, db, permissions)
             projects = ProjectService(settings, db, permissions, files)
             cleanup.callback(db.close)
+            cleanup.callback(user_store.close)
             cleanup.callback(files.close)
             db.open(initialize=files.scan_initial)
+            user_store.initialize()
             permissions.validate()
-            users.validate()
             projects.initialize()
             files.initialize()
             report = files.synchronizer.synchronize(metadata) if synchronize else asdict(db.migration_report)

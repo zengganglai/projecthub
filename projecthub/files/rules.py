@@ -16,7 +16,7 @@ TABLES = {
 
 
 FIELDS = {
-    "curve": {"curve_type", "description"},
+    "curve": {"curve_name", "curve_type", "description"},
     "firmware": {
         "firmware_type",
         "version",
@@ -90,6 +90,8 @@ def upload_fields(category, name, fields, digest):
     result = dict(fields)
     if category in ("curve", "firmware") and not fields[category + "_type"].strip():
         raise HubError("INVALID_UPLOAD", "业务类型不能为空。")
+    if category == "curve" and not fields["curve_name"].strip():
+        raise HubError("INVALID_UPLOAD", "曲线名称不能为空。")
     if category == "firmware":
         try:
             version_key(fields["version"])

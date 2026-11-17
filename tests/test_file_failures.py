@@ -45,7 +45,7 @@ def test_revoked_upload_does_not_publish(hub):
         project["id"],
         "curve",
         "secret.json",
-        {"curve_type": "c", "description": ""},
+        {"curve_name": "test", "curve_type": "c", "description": ""},
         sha256(b"{}").hexdigest(),
     )
     try:
@@ -65,10 +65,22 @@ def test_failed_sql_window_restores_original_and_keeps_review(hub, monkeypatch):
 
     files, _, actor, _, project = hub
     pid = project["id"]
-    pending = upload(files, actor, pid, "curve", "a.json", b'{"a":1}', {"curve_type": "c", "description": ""})
+    pending = upload(
+        files,
+        actor,
+        pid,
+        "curve",
+        "a.json",
+        b'{"a":1}',
+        {"curve_name": "test", "curve_type": "c", "description": ""},
+    )
     original = files.reviews.approve_review(actor, pending["id"])
     update = files.begin_curve_update(
-        actor, pid, original["id"], {"curve_type": "c", "description": "new"}, sha256(b'{"a":2}').hexdigest()
+        actor,
+        pid,
+        original["id"],
+        {"curve_name": "test", "curve_type": "c", "description": "new"},
+        sha256(b'{"a":2}').hexdigest(),
     )
     update.write(b'{"a":2}')
     pending = update.finish()
@@ -92,7 +104,13 @@ def test_failed_recovery_blocks_reads_then_can_retry(hub, monkeypatch):
 
     files, _, actor, _, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "a.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "a.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     apply = files.publisher.apply
     recover = files.publisher.recover
@@ -124,6 +142,7 @@ def test_initial_scan_skips_reviewed_categories_and_sync_rejects_changes(tmp_pat
     from projecthub.database import Database
     from projecthub.files import FileService
     from projecthub.permissions import Permissions
+    from projecthub.users import UserStore
 
     settings = resolve_settings(AppConfig(project_root=tmp_path))
     directory = tmp_path / "data/files/M/v1"
@@ -132,9 +151,13 @@ def test_initial_scan_skips_reviewed_categories_and_sync_rejects_changes(tmp_pat
     (directory / "curve/unreviewed.json").write_text("{}")
     (directory / "public/a.txt").write_text("hello")
     db = Database(settings)
-    files = FileService(settings, db, Permissions(db))
+    cache = UserStore(db)
+    permissions = Permissions(db, cache)
+    files = FileService(settings, db, permissions)
     try:
         db.open(initialize=files.scan_initial)
+        cache.initialize()
+        permissions.validate()
         files.initialize()
         assert files.catalog.list_files()["count"] == 1
         with pytest.raises(HubError) as error:
@@ -142,13 +165,20 @@ def test_initial_scan_skips_reviewed_categories_and_sync_rejects_changes(tmp_pat
         assert error.value.code == "REVIEW_REQUIRED"
     finally:
         files.close()
+        cache.close()
         db.close()
 
 
 def test_committed_delete_cleanup_is_retryable(hub, monkeypatch):
     files, _, actor, _, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "cleanup.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "cleanup.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     row = files.reviews.approve_review(actor, pending["id"])
     pending = files.reviews.request_curve_delete(actor, project["id"], row["id"])
@@ -172,7 +202,13 @@ def test_cleanup_failure_blocks_changes_until_recovery(hub, monkeypatch):
 
     files, _, actor, _, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "cleanup.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "cleanup.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     original_unlink = Path.unlink
 
@@ -198,7 +234,13 @@ def test_delete_snapshot_copy_failure_leaves_no_name_reservation(hub, monkeypatc
 
     files, _, actor, _, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "delete.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "delete.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     row = files.reviews.approve_review(actor, pending["id"])
 
@@ -220,7 +262,7 @@ def test_rollback_cleanup_retries_after_original_file_is_restored(hub, monkeypat
     from projecthub.contracts import HubError
 
     files, _, actor, _, project = hub
-    fields = {"curve_type": "c", "description": ""}
+    fields = {"curve_name": "test", "curve_type": "c", "description": ""}
     first = upload(files, actor, project["id"], "curve", "rollback.json", b"{}", fields)
     row = files.reviews.approve_review(actor, first["id"])
     handle = files.begin_curve_update(
@@ -319,7 +361,13 @@ def test_rejected_review_cleanup_is_committed_and_recoverable(hub, monkeypatch, 
 
     files, _, actor, _, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "rejection.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "rejection.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     if delete:
         row = files.reviews.approve_review(actor, pending["id"])
@@ -359,7 +407,7 @@ def test_rejected_review_cleanup_is_committed_and_recoverable(hub, monkeypatch, 
             "curve",
             "rejection.json",
             b"{}",
-            {"curve_type": "c", "description": ""},
+            {"curve_name": "test", "curve_type": "c", "description": ""},
         )
 
 
@@ -368,7 +416,13 @@ def test_committed_publication_blocks_on_recovery_validation_error(hub, monkeypa
 
     files, _, actor, _, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "validation.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "validation.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     original_cleanup = files.publisher._cleanup
 
@@ -395,7 +449,13 @@ def test_synchronization_refreshes_unchanged_curve_modification_time(hub):
 
     files, _, actor, _, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "mtime.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "mtime.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     row = files.reviews.approve_review(actor, pending["id"])
     path = files.settings.storage.object_dir / row["path"]
@@ -418,7 +478,7 @@ def test_rejection_sql_rollback_preserves_review_and_stage(hub, monkeypatch):
         "curve",
         "reject-rollback.json",
         b"{}",
-        {"curve_type": "c", "description": ""},
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     transaction = files.db.transaction
 
@@ -450,7 +510,7 @@ def test_review_recovery_preserves_replaced_stage(hub, monkeypatch, operation):
         "curve",
         "reject-foreign.json",
         b"{}",
-        {"curve_type": "c", "description": ""},
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     stage = files.settings.storage.audit_dir / pending["path"]
     original_unlink = Path.unlink
@@ -490,7 +550,7 @@ def test_approved_delete_stage_cleanup_is_committed_and_recoverable(hub, monkeyp
         "curve",
         "delete-stage.json",
         b"{}",
-        {"curve_type": "c", "description": ""},
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     row = files.reviews.approve_review(actor, pending["id"])
     pending = files.reviews.request_curve_delete(actor, project["id"], row["id"])
@@ -521,5 +581,5 @@ def test_approved_delete_stage_cleanup_is_committed_and_recoverable(hub, monkeyp
         "curve",
         "delete-stage.json",
         b"{}",
-        {"curve_type": "c", "description": ""},
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )

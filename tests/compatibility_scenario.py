@@ -154,10 +154,24 @@ class Replay:
         return payload
 
     async def upload(
-        self, label, target, raw, name=None, *, curve=False, status=202, auth=_DEFAULT_AUTH, **params
+        self,
+        label,
+        target,
+        raw,
+        name=None,
+        *,
+        curve=False,
+        curve_name=None,
+        status=202,
+        auth=_DEFAULT_AUTH,
+        **params,
     ):
         if name is not None:
             params["file_name"] = name
+        if curve:
+            assert isinstance(curve_name, str) and curve_name
+            if self.implementation == "projecthub":
+                params["curve_name"] = curve_name
         params["file_sha256"] = _digest(raw)
         return await self.call(
             label,
@@ -265,7 +279,9 @@ class Replay:
         )
         version_dir = self.objects / "M910" / "初版"
         (version_dir / "config.json").write_text('{"label":"配置","enabled":true}', encoding="utf-8")
-        (version_dir / "curve" / "模板.json").write_text('{"points":[1,2,3]}', encoding="utf-8")
+        # Template location is intentionally model-scoped in ProjectHub.
+        template_dir = version_dir / "curve" if self.implementation == "reference" else version_dir.parent
+        (template_dir / "模板.json").write_text('{"points":[1,2,3]}', encoding="utf-8")
         await call("public-config", "GET", f"{version_path}/config")
         await call("curve-template", "GET", f"{version_path}/curves/template")
 
@@ -353,6 +369,7 @@ class Replay:
             _CURVE_A,
             "曲线一.json",
             curve=True,
+            curve_name="曲线A",
             auth=actor,
             curve_type="工况",
             description="匹配%_",
@@ -397,6 +414,7 @@ class Replay:
             _CURVE_B,
             "曲线二.json",
             curve=True,
+            curve_name="曲线B",
             auth=actor,
             curve_type="次要",
             description="",
@@ -516,6 +534,7 @@ class Replay:
             b"{}",
             "rejected.json",
             curve=True,
+            curve_name="驳回曲线",
             auth=actor,
             curve_type="x",
             description="",

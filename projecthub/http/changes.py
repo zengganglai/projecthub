@@ -70,14 +70,18 @@ async def replace_curve(
     curve_type: str,
     description: str,
     file_sha256: _SHA256,
+    curve_name: str | None = None,
 ):
+    fields = {"curve_type": curve_type, "description": description}
+    if curve_name is not None:
+        fields["curve_name"] = curve_name
     return await receive_upload(
         request,
         actor,
         project["id"],
         "curve",
         None,
-        {"curve_type": curve_type, "description": description},
+        fields,
         file_sha256,
         replaces=file_id,
     )
@@ -93,7 +97,8 @@ async def upload_curve(
     request: Request,
     actor: Actor,
     project: Version,
-    file_name: str,
+    file_name: Annotated[str, Query(min_length=1, description="曲线文件名，同版本内唯一")],
+    curve_name: Annotated[str, Query(min_length=1, description="曲线名称，不能全为空白且同版本内唯一")],
     curve_type: str,
     description: str,
     file_sha256: _SHA256,
@@ -104,7 +109,7 @@ async def upload_curve(
         project["id"],
         "curve",
         file_name,
-        {"curve_type": curve_type, "description": description},
+        {"curve_name": curve_name, "curve_type": curve_type, "description": description},
         file_sha256,
     )
 

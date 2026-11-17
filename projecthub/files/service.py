@@ -151,7 +151,9 @@ class FileService:
             values["supported_models"] = record["supported_models"]
         return digest_data(values)
 
-    def _pending_available(self, project_id, name, original=None, *, ignore_upload=None, ignore_review=None):
+    def _pending_available(
+        self, project_id, name, original=None, *, curve_name=None, ignore_upload=None, ignore_review=None
+    ):
         target_id = original["id"] if original and original["category"] == "firmware" else None
         for row in self.db.query(
             "SELECT id,file_name,field_info FROM pending_reviews WHERE project_id=?", (project_id,)
@@ -167,6 +169,12 @@ class FileService:
                 and info.get("file_id") == target_id
             ):
                 raise HubError("REVIEW_ALREADY_PENDING", "该文件已有待审变更。")
+            if (
+                curve_name is not None
+                and info["category"] == "curve"
+                and info["fields"]["curve_name"] == curve_name
+            ):
+                raise HubError("REVIEW_ALREADY_PENDING", "该曲线名称已有待审变更。")
         for handle in self._uploads:
             if handle is ignore_upload or handle.finished or handle.closed or handle.project_id != project_id:
                 continue
@@ -178,6 +186,20 @@ class FileService:
                 and handle.original["id"] == target_id
             ):
                 raise HubError("REVIEW_ALREADY_PENDING", "该文件已有上传正在接收。")
+            if (
+                curve_name is not None
+                and handle.category == "curve"
+                and handle.fields["curve_name"] == curve_name
+            ):
+                raise HubError("REVIEW_ALREADY_PENDING", "该曲线名称已有上传正在接收。")
+
+    def _available_curve_name(self, project_id, curve_name, original=None):
+        row = self.db.one(
+            "SELECT id FROM curve_configs WHERE project_id=? AND curve_name=?",
+            (project_id, curve_name),
+        )
+        if row is not None and not (original and original["id"] == row["id"]):
+            raise HubError("CURVE_NAME_ALREADY_EXISTS", "项目版本内不能存在同名曲线。")
 
     def _available_name(self, project_id, name, original=None):
         for kind, table in TABLES.items():
@@ -245,8 +267,10 @@ class FileService:
         with self.operation():
             self.permissions.require(actor, WRITE_PERMISSIONS[category], project_id)
             original = self._firmware_target(project_id, fields) if category == "firmware" else None
-            self._pending_available(project_id, file_name, original)
+            self._pending_available(project_id, file_name, original, curve_name=fields.get("curve_name"))
             self._available_name(project_id, file_name, original)
+            if category == "curve":
+                self._available_curve_name(project_id, fields["curve_name"])
             if original:
                 require_hash(self._formal_path(original), original["sha256"], "REVIEW_CONFLICT")
                 self._pending_available(project_id, original["file_name"], original)
@@ -258,9 +282,14 @@ class FileService:
         with self.operation():
             self.permissions.require(actor, "curve.manage", project_id)
             original = self._record("curve", file_id, project_id)
+            if isinstance(fields, dict):
+                fields = {"curve_name": original["curve_name"], **fields}
             fields = upload_fields("curve", original["file_name"], fields, file_sha256)
-            self._pending_available(project_id, original["file_name"], original)
+            self._pending_available(
+                project_id, original["file_name"], original, curve_name=fields["curve_name"]
+            )
             self._available_name(project_id, original["file_name"], original)
+            self._available_curve_name(project_id, fields["curve_name"], original)
             require_hash(self._formal_path(original), original["sha256"], "REVIEW_CONFLICT")
             return Upload(
                 self, actor, project_id, "curve", original["file_name"], fields, file_sha256, original
@@ -279,7 +308,7 @@ class FileService:
             info["action"] = action
         if original:
             info["file_id"] = original["id"]
-        user = self.db.one("SELECT name FROM users WHERE id=?", (actor["user_id"],))
+        user = self.permissions.user_store.get(actor["user_id"])
         with self.db.transaction() as connection:
             cursor = connection.execute(
                 "INSERT INTO pending_reviews(project_id,reviewer_user_id,uploaded_at,file_name,path,sha256,field_info,submitter_name) VALUES(?,NULL,?,?,?,?,?,?)",
@@ -308,8 +337,16 @@ class FileService:
                 current = None
             if self._revision(current, handle.category) != self._revision(original, handle.category):
                 raise HubError("REVIEW_CONFLICT", "接收期间正式文件发生变化。")
-            self._pending_available(handle.project_id, handle.name, original, ignore_upload=handle)
+            self._pending_available(
+                handle.project_id,
+                handle.name,
+                original,
+                curve_name=handle.fields.get("curve_name"),
+                ignore_upload=handle,
+            )
             self._available_name(handle.project_id, handle.name, original)
+            if handle.category == "curve":
+                self._available_curve_name(handle.project_id, handle.fields["curve_name"], original)
             if original:
                 require_hash(self._formal_path(original), original["sha256"], "REVIEW_CONFLICT")
             if handle.category in ("internal", "public"):

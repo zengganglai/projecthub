@@ -91,7 +91,7 @@ class Files:
 
     def begin_upload(self, actor, project_id, category, file_name, fields, file_sha256):
         assert (actor["user_id"], project_id, category, file_name) == (1, 3, "curve", "curve.json")
-        assert fields == {"curve_type": "x", "description": "d"}
+        assert fields == {"curve_name": "test", "curve_type": "x", "description": "d"}
         assert file_sha256 == hashlib.sha256(b'{"a":1}').hexdigest()
         self.upload = Upload()
         return self.upload
@@ -178,6 +178,7 @@ def test_openapi_declares_every_business_method_and_path():
         PROJECT + "/versions": "get post",
         RELEASE: "patch",
         RELEASE + "/curves/template": "get",
+        RELEASE + "/curves/names": "get",
         RELEASE + "/firmwares/check": "get",
         RELEASE + "/files/{category}/{file_id}/json": "get",
         RELEASE + "/files/{category}/json": "post",
@@ -219,7 +220,7 @@ def test_openapi_declares_every_business_method_and_path():
         for method in methods
     }
     expected = {(path, method) for path, methods in signatures.items() for method in methods.split()}
-    assert len(expected) == 51
+    assert len(expected) == 52
     assert actual == expected
 
 
@@ -369,7 +370,7 @@ def test_upload_consumes_original_chunks_and_closes_when_client_disconnects():
     app = make_app()
     upload_path = VERSION + "/curves/upload"
     digest = hashlib.sha256(b'{"a":1}').hexdigest()
-    query = f"file_name=curve.json&curve_type=x&description=d&file_sha256={digest}".encode()
+    query = f"file_name=curve.json&curve_name=test&curve_type=x&description=d&file_sha256={digest}".encode()
     headers = [*AUTH, (b"content-type", b"application/json; charset=utf-8")]
 
     status, _, body = asyncio.run(
@@ -603,7 +604,7 @@ def test_cancel_during_handle_creation_waits_for_creation_and_close(upload):
                 "POST",
                 VERSION + "/curves/upload",
                 headers=[*AUTH, (b"content-type", b"application/json")],
-                query=f"file_name=curve.json&curve_type=x&description=d&file_sha256={digest}".encode(),
+                query=f"file_name=curve.json&curve_name=test&curve_type=x&description=d&file_sha256={digest}".encode(),
             )
         else:
             app.state.files.prepare_download = begin

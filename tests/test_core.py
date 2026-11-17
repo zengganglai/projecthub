@@ -25,6 +25,10 @@ def test_config_normalizes_atomically_without_creating_data(tmp_path):
     configured = resolve_settings(original)
     assert configured.database.path == tmp_path / "data/sql/device_bridge.sqlite3"
     assert configured.http.max_concurrent_requests == 16
+    assert configured.users.max_users == 200
+    for user_limit in (0, True, 201):
+        with pytest.raises(HubError):
+            resolve_settings(replace(original, users=replace(original.users, max_users=user_limit)))
     assert not (tmp_path / "data").exists()
     for count in [0, -1, True, 1.5]:
         with pytest.raises(HubError):

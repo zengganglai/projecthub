@@ -6,6 +6,10 @@ from projecthub.storage import require_hash, safe_path
 from .publication import finish_publication, publish_file
 from .rules import FIELDS, WRITE_PERMISSIONS, upload_fields, validate_pagination
 
+_REVIEW_QUERY = (
+    "SELECT r.*,p.name AS project_name FROM pending_reviews r JOIN projects p ON p.id=r.project_id"
+)
+
 
 class FileReviews:
     """文件审核状态转换与待审下载。"""
@@ -18,7 +22,7 @@ class FileReviews:
         if type(identifier) is not int or identifier < 1:
             raise HubError("REVIEW_NOT_FOUND", "待审不存在或已处理。")
         row = files.db.one(
-            "SELECT r.*,p.name AS project_name FROM pending_reviews r JOIN projects p ON p.id=r.project_id WHERE r.id=?",
+            _REVIEW_QUERY + " WHERE r.id=?",
             (identifier,),
         )
         if row is None:
@@ -38,8 +42,8 @@ class FileReviews:
         with files.operation():
             validate_pagination(offset, limit)
             records = []
-            for item in files.db.query("SELECT id FROM pending_reviews ORDER BY id"):
-                row = self._review(item["id"])
+            for row in files.db.query(_REVIEW_QUERY + " ORDER BY r.id"):
+                row["field_info"] = decode_json(row["field_info"])
                 if project_id is not None and row["project_id"] != project_id:
                     continue
                 permission = row["field_info"]["category"] + ".review"
@@ -131,6 +135,8 @@ class FileReviews:
             )
             if action != "delete":
                 files._available_name(row["project_id"], row["file_name"], original)
+                if category == "curve":
+                    files._available_curve_name(row["project_id"], fields["curve_name"], original)
             return publish_file(
                 files,
                 row["project_id"],

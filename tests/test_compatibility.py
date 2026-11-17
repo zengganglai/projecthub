@@ -1,5 +1,6 @@
-"""Compare all HTTP steps, asserting each deliberate model-scope permission change."""
+"""Compare every HTTP step, asserting exact permission and curve-name differences."""
 
+import hashlib
 import json
 import os
 import subprocess
@@ -8,6 +9,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
+import rfc8785
 
 _SCENARIO = Path(__file__).with_name("compatibility_scenario.py")
 _REFERENCE_ROOT = Path(os.getenv("PROJECTHUB_REFERENCE_ROOT", "Z:/Code/DeviceBridge"))
@@ -145,6 +147,78 @@ def _assert_permission_changes(expected, actual):
     assert len({step for step, _ in changed_paths}) == 11
 
 
+def _assert_curve_name_changes(expected, actual):
+    """Accept 15 added names and four exact revision changes across 14 responses."""
+    changed_paths = set()
+
+    def containers(step, path):
+        location = (step, path)
+        assert location not in changed_paths, location
+        reference, observed = expected[step], actual[step]
+        for key in path[:-1]:
+            reference, observed = reference[key], observed[key]
+        changed_paths.add(location)
+        return reference, observed, path[-1]
+
+    def added_name(step, path, name):
+        reference, observed, key = containers(step, (*path, "curve_name"))
+        assert key not in reference, (step, path, "Reference must not expose curve_name")
+        assert observed[key] == name, (step, path, observed[key], name)
+        reference[key] = name
+
+    fields_path = ("data", "field_info", "fields")
+    for step in (
+        "submit-curve-a",
+        "review-detail",
+        "submit-curve-update",
+        "renamed-pending-review",
+        "request-curve-deletion",
+        "request-curve-deletion-again",
+    ):
+        added_name(step, fields_path, "曲线A")
+    added_name("review-list", ("data", "reviews", 0, "field_info", "fields"), "曲线A")
+    added_name("submit-curve-b", fields_path, "曲线B")
+    added_name("submit-rejected-curve", fields_path, "驳回曲线")
+    added_name("approve-curve-a", ("data",), "曲线A")
+    added_name("approve-curve-b", ("data",), "曲线B")
+    # The update request omits curve_name, so approval and deletion must retain A.
+    added_name("approve-curve-update", ("data",), "曲线A")
+    added_name("filter-by-literal", ("data", "files", 0), "曲线A")
+    added_name("sorted-curves", ("data", "files", 0), "曲线B")
+    added_name("sorted-curves", ("data", "files", 1), "曲线A")
+    assert len(changed_paths) == 15
+
+    def revisions(raw, curve_type, description):
+        # Independently derive both contracts from the known file bytes and fields;
+        # never accept an arbitrary digest or derive it from the observed response.
+        fields = {
+            "id": 1,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "curve_type": curve_type,
+            "description": description,
+        }
+        previous = hashlib.sha256(rfc8785.dumps(fields)).hexdigest()
+        current = hashlib.sha256(rfc8785.dumps({**fields, "curve_name": "曲线A"})).hexdigest()
+        assert previous != current
+        return previous, current
+
+    original = revisions('{"名称": "一号曲线", "值":[1,2]}\n'.encode(), "工况", "匹配%_")
+    updated = revisions(b'{"name": "edited"}\n', "已调整", "新的描述")
+    for step, (previous, current) in (
+        ("submit-curve-update", original),
+        ("renamed-pending-review", original),
+        ("request-curve-deletion", updated),
+        ("request-curve-deletion-again", updated),
+    ):
+        path = ("data", "field_info", "base_revision")
+        reference, observed, key = containers(step, path)
+        assert reference[key] == previous, (step, path, "reference", reference[key], previous)
+        assert observed[key] == current, (step, path, "projecthub", observed[key], current)
+        reference[key] = current
+    assert len(changed_paths) == 19
+    assert len({step for step, _ in changed_paths}) == 14
+
+
 def _compare(root):
     expected = _run("reference", _REFERENCE_ROOT, root / "reference")
     actual = _run("projecthub", _PROJECT_ROOT, root / "projecthub")
@@ -152,5 +226,6 @@ def _compare(root):
     # Original 115 requests are retained; granted identity adds one contract step.
     assert len(expected) == 116
     _assert_permission_changes(expected, actual)
+    _assert_curve_name_changes(expected, actual)
     mismatches = {step: (expected[step], actual[step]) for step in expected if expected[step] != actual[step]}
     assert mismatches == {}

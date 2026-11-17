@@ -35,7 +35,6 @@ class Database:
         self._settings = settings
         self._connection: sqlite3.Connection | None = None
         self.lock = RLock()
-        self.created = False
         self.migration_report: MigrationReport | None = None
 
     @property
@@ -81,7 +80,6 @@ class Database:
                 if self._connection is not None:
                     self._connection.close()
                     self._connection = None
-                self.created = False
                 if isinstance(error, (OSError, sqlite3.Error)) or (
                     isinstance(error, HubError) and error.code == "SERVICE_LOCK_ERROR"
                 ):
@@ -99,7 +97,6 @@ class Database:
                 revision = revisions[0][0]
         if not names:
             initialize_schema(connection)
-            self.created = True
             if initialize is not None:
                 initialize()
         elif revision != SCHEMA_REVISION:
@@ -115,7 +112,6 @@ class Database:
                     raise HubError("DATABASE_LIFECYCLE_ERROR", "数据库事务内不能关闭连接。")
                 self._connection.close()
                 self._connection = None
-            self.created = False
             self.migration_report = None
 
     @contextmanager

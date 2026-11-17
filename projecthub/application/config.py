@@ -6,6 +6,7 @@ from pathlib import Path
 
 from projecthub.contracts import HubError
 from projecthub.remote import RemoteControlConfig, validate_remote_config
+from projecthub.users import MAX_USERS
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +41,7 @@ class MigrationConfig:
 
 @dataclass(frozen=True, slots=True)
 class UserConfig:
-    max_users: int = 100
+    max_users: int = MAX_USERS
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,7 +149,7 @@ def resolve_settings(settings: AppConfig) -> AppConfig:
         ):
             raise ValueError("数据库和维护锁必须独立于文件目录。")
         _integer(database.busy_timeout_ms, 0, 2147483647)
-        _integer(settings.users.max_users, 1, 100)
+        _integer(settings.users.max_users, 1, MAX_USERS)
         for name in UploadConfig.__dataclass_fields__:
             _integer(getattr(settings.uploads, name), 1, 2**63 - 1)
         return replace(settings, project_root=root, storage=storage, database=database, migrations=migrations)

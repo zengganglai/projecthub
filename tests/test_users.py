@@ -8,10 +8,10 @@ import pytest
 from projecthub.contracts import HubError
 from projecthub.database import Database
 from projecthub.permissions import Permissions, permission_catalog
-from projecthub.users import Users
+from projecthub.users import Users, UserStore
 
 
-def settings(root, *, max_users=100):
+def settings(root, *, max_users=200):
     root = root.resolve()
     return SimpleNamespace(
         database=SimpleNamespace(path=root / "sql" / "hub.sqlite3", busy_timeout_ms=150),
@@ -32,8 +32,18 @@ def db(tmp_path):
 
 
 @pytest.fixture
-def permissions(db):
-    return Permissions(db)
+def user_store(db):
+    store = UserStore(db)
+    store.initialize()
+    try:
+        yield store
+    finally:
+        store.close()
+
+
+@pytest.fixture
+def permissions(db, user_store):
+    return Permissions(db, user_store)
 
 
 @pytest.fixture
@@ -69,8 +79,9 @@ def test_reopen_preserves_changed_credentials_and_deleted_seed(db, users, admin)
 
     db.close()
     db.open()
+    users.user_store.initialize()
 
-    assert db.one("SELECT version_num FROM alembic_version") == {"version_num": "0002"}
+    assert db.one("SELECT version_num FROM alembic_version") == {"version_num": "0004"}
     assert users.authenticate(name, "  密码 α  ")["is_admin"] is True
     expect_code("AUTHENTICATION_FAILED", users.authenticate, name, "888888")
     expect_code("AUTHENTICATION_FAILED", users.authenticate, "tool", "123456")
@@ -172,10 +183,13 @@ def test_user_removal_protects_admin_project_grants_and_pending_submitters(db, u
     expect_code("INVALID_USER", users.delete_user, admin, True)
 
 
-def test_user_limit_rejects_overflow_without_writing(db, permissions, admin):
-    users = Users(db, permissions, max_users=2)
+def test_user_limit_rejects_overflow_without_writing(db, admin):
+    store = UserStore(db, max_users=2)
+    store.initialize()
+    users = Users(db, Permissions(db, store))
     expect_code("USER_LIMIT_REACHED", users.create_user, admin, {"name": "extra"})
     assert [row["user_id"] for row in users.list_users(admin)] == [1, 2]
+    store.close()
 
 
 def test_permission_catalog_preserves_order_and_scopes():
@@ -255,10 +269,10 @@ def test_initial_catalog_failure_can_be_retried_as_new_database(tmp_path):
 
     with pytest.raises(HubError, match="scan failed"):
         database.open(initialize=failed_scan)
-    assert not database.created
+    assert database.migration_report is None
     database.open()
     try:
-        assert database.created
+        assert database.migration_report.from_revision is None
         assert database.query("SELECT name FROM project_models") == []
     finally:
         database.close()
@@ -270,7 +284,7 @@ def test_migration_lock_excludes_another_opener(tmp_path):
     database.open(initialize=lambda: expect_code("DATABASE_MIGRATION_LOCKED", competing.open))
     try:
         competing.open()
-        assert competing.one("SELECT version_num FROM alembic_version") == {"version_num": "0002"}
+        assert competing.one("SELECT version_num FROM alembic_version") == {"version_num": "0004"}
     finally:
         competing.close()
         database.close()
@@ -286,6 +300,8 @@ def test_startup_validates_model_grants_and_ignores_unused_global_column(db, per
             "UPDATE users SET permissions='[]', project_permissions=? WHERE name='tool'",
             ('{"curve.review":["missing"]}',),
         )
+    permissions.user_store.close()
+    permissions.user_store.initialize()
     expect_code("USER_STORE_ERROR", permissions.validate)
 
 
@@ -295,4 +311,4 @@ def test_migration_lock_open_failure_remains_a_database_error(tmp_path):
     database = Database(config)
     expect_code("DATABASE_MIGRATION_ERROR", database.open)
     expect_code("DATABASE_NOT_READY", lambda: database.connection)
-    assert not database.created
+    assert database.migration_report is None

@@ -10,23 +10,29 @@ def hub(tmp_path):
     from projecthub.files import FileService
     from projecthub.permissions import Permissions
     from projecthub.projects import ProjectService
-    from projecthub.users import Users
+    from projecthub.users import Users, UserStore
 
     settings = resolve_settings(AppConfig(project_root=tmp_path))
     db = Database(settings)
-    permissions = Permissions(db)
+    cache = UserStore(db)
+    permissions = Permissions(db, cache)
     users = Users(db, permissions)
     files = FileService(settings, db, permissions)
     projects = ProjectService(settings, db, permissions, files)
-    db.open(initialize=files.scan_initial)
-    projects.initialize()
-    files.initialize()
-    actor = {"user_id": db.one("SELECT id FROM users WHERE is_admin=1")["id"]}
-    model = projects.create_project_model("M910", actor=actor)
-    project = projects.create_project_version("M910", "v1", actor=actor)
-    yield files, users, actor, model, project
-    files.close()
-    db.close()
+    try:
+        db.open(initialize=files.scan_initial)
+        cache.initialize()
+        permissions.validate()
+        projects.initialize()
+        files.initialize()
+        actor = {"user_id": next(row["id"] for row in cache.all() if row["is_admin"])}
+        model = projects.create_project_model("M910", actor=actor)
+        project = projects.create_project_version("M910", "v1", actor=actor)
+        yield files, users, actor, model, project
+    finally:
+        files.close()
+        cache.close()
+        db.close()
 
 
 def upload(files, actor, pid, category, name, content, fields):
@@ -38,11 +44,51 @@ def upload(files, actor, pid, category, name, content, fields):
         handle.close()
 
 
+def test_file_metadata_uses_cached_user_names(hub, monkeypatch):
+    files, users, actor, _, project = hub
+    users.update_user(actor, actor["user_id"], {"name": "cached-admin"})
+    query_one = files.db.one
+
+    def reject_user_name_query(sql, params=()):
+        assert "SELECT name FROM users" not in sql, "File names must use the shared user cache"
+        return query_one(sql, params)
+
+    monkeypatch.setattr(files.db, "one", reject_user_name_query)
+    pending = upload(
+        files,
+        actor,
+        project["id"],
+        "firmware",
+        "cached.bin",
+        b"firmware",
+        {
+            "firmware_type": "main",
+            "version": "2",
+            "min_version": "1",
+            "max_version": "1.9",
+            "release_notes": "cached user name",
+        },
+    )
+    assert pending["submitter_name"] == "cached-admin"
+    firmware = files.reviews.approve_review(actor, pending["id"])
+    assert firmware["uploaded_by"] == "cached-admin"
+    authorization = files.authorizations.create_download_authorization(
+        actor, project["id"], firmware["path"], "2099-01-01", "1234567890abcdef", "001"
+    )
+    assert authorization["created_by"] == "cached-admin"
+
+
 def test_curve_review_update_sort_delete_and_restart(hub):
     files, users, actor, model, project = hub
     pid = project["id"]
     pending = upload(
-        files, actor, pid, "curve", "a.json", b'{"a":1}', {"curve_type": "type", "description": ""}
+        files,
+        actor,
+        pid,
+        "curve",
+        "a.json",
+        b'{"a":1}',
+        {"curve_name": "test", "curve_type": "type", "description": ""},
     )
     assert files.catalog.list_files(project_id=pid, category="curve")["count"] == 0
     assert files.reviews.get_review(actor, pending["id"])["field_info"]["category"] == "curve"
@@ -52,7 +98,7 @@ def test_curve_review_update_sort_delete_and_restart(hub):
         actor,
         pid,
         formal["id"],
-        {"curve_type": "changed", "description": "new"},
+        {"curve_name": "test", "curve_type": "changed", "description": "new"},
         sha256(b'{"a":2}').hexdigest(),
     )
     handle.write(b'{"a":2}')
@@ -90,7 +136,13 @@ def test_direct_file_and_authorization_revoke_and_hash(hub):
 def test_project_rename_preserves_pending_and_permissions(hub):
     files, users, actor, model, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "a.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "a.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     from projecthub.projects import ProjectService
 
@@ -107,7 +159,12 @@ def test_upload_hash_and_name_conflicts_leave_no_formal_file(hub):
 
     files, _, actor, _, project = hub
     handle = files.begin_upload(
-        actor, project["id"], "curve", "a.json", {"curve_type": "c", "description": ""}, "0" * 64
+        actor,
+        project["id"],
+        "curve",
+        "a.json",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
+        "0" * 64,
     )
     handle.write(b"{}")
     with pytest.raises(HubError) as caught:
@@ -125,7 +182,13 @@ def test_upload_hash_and_name_conflicts_leave_no_formal_file(hub):
 def test_file_handlers_share_download_lifecycle(hub):
     files, _, actor, _, project = hub
     pending = upload(
-        files, actor, project["id"], "curve", "owned.json", b"{}", {"curve_type": "c", "description": ""}
+        files,
+        actor,
+        project["id"],
+        "curve",
+        "owned.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
     )
     review_handle = files.reviews.prepare_review_download(actor, pending["id"])
     assert review_handle.read_chunk(100) == b"{}"
@@ -138,3 +201,82 @@ def test_file_handlers_share_download_lifecycle(hub):
     authorized = files.authorizations.prepare_authorized_download("0123456789abcdef")
     files.close()
     assert review_handle.closed and ordinary.closed and authorized.closed
+
+
+def test_file_search_preserves_ascii_and_literal_matching(hub):
+    files, _, actor, _, project = hub
+    upload(files, actor, project["id"], "public", "Alpha.bin", b"a", {"description": "MiXeD Ä %_"})
+    upload(files, actor, project["id"], "public", "beta.bin", b"b", {"description": "ä plain"})
+    for query, names in (
+        (None, ["Alpha.bin", "beta.bin"]),
+        ("", ["Alpha.bin", "beta.bin"]),
+        ("aLpHa", ["Alpha.bin"]),
+        ("mixed", ["Alpha.bin"]),
+        ("Ä", ["Alpha.bin"]),
+        ("ä", ["beta.bin"]),
+        ("%_", ["Alpha.bin"]),
+        ("M910", ["Alpha.bin", "beta.bin"]),
+        ("V1", ["Alpha.bin", "beta.bin"]),
+        (".BIN", ["Alpha.bin", "beta.bin"]),
+    ):
+        result = files.catalog.list_files(project_id=project["id"], category="public", q=query, actor=actor)
+        assert [row["file_name"] for row in result["files"]] == names, query
+        assert result["count"] == len(names)
+
+
+def test_review_listing_filters_before_pagination(hub):
+    from projecthub.projects import ProjectService
+
+    files, users, actor, _, project = hub
+    projects = ProjectService(files.settings, files.db, users.permissions, files)
+    projects.create_project_model("Other", actor=actor)
+    hidden = projects.create_project_version("Other", "v1", actor=actor)
+    sibling = projects.create_project_version("M910", "v2", actor=actor)
+    reviewer = users.create_user(actor, {"name": "reviewer"})
+    users.permissions.set_user_permissions(actor, reviewer["user_id"], [], {"curve.review": ["M910"]})
+    upload(
+        files,
+        actor,
+        hidden["id"],
+        "curve",
+        "hidden.json",
+        b"{}",
+        {"curve_name": "test", "curve_type": "c", "description": ""},
+    )
+    upload(
+        files,
+        actor,
+        project["id"],
+        "firmware",
+        "firmware.bin",
+        b"firmware",
+        {
+            "firmware_type": "main",
+            "version": "1",
+            "min_version": "0",
+            "max_version": "0",
+            "release_notes": "",
+        },
+    )
+    for version, name, curve_name in (
+        (project, "first.json", "first"),
+        (sibling, "sibling.json", "sibling"),
+        (project, "last.json", "last"),
+    ):
+        upload(
+            files,
+            actor,
+            version["id"],
+            "curve",
+            name,
+            b"{}",
+            {"curve_name": curve_name, "curve_type": "c", "description": ""},
+        )
+    listing = files.reviews.list_reviews(reviewer)
+    assert [row["file_name"] for row in listing["reviews"]] == ["first.json", "sibling.json", "last.json"]
+    assert listing["count"] == 3
+    page = files.reviews.list_reviews(reviewer, project_id=project["id"], offset=1, limit=1)
+    assert page["offset"] == 1 and page["count"] == 1
+    assert page["reviews"][0]["file_name"] == "last.json"
+    assert page["reviews"][0]["project_name"] == "M910"
+    assert page["reviews"][0]["field_info"]["category"] == "curve"

@@ -122,6 +122,8 @@ def repair_renamed_directory(paths, entry, *, committed):
 
 
 def _recover_manifest(settings, db, path, manifest):
+    if db.connection.in_transaction:
+        raise ValueError("数据库事务尚未结束，不能判定项目改名结果。")
     kind, identifier = manifest["kind"], manifest["identifier"]
     if kind not in ("model", "version") or type(identifier) is not int or not 1 <= identifier < 2**63:
         raise ValueError("项目改名恢复标识无效。")
@@ -168,6 +170,8 @@ def recover_renames(settings, db):
     with db.lock:
         root = settings.storage.backups_dir
         try:
+            if db.connection.in_transaction:
+                raise ValueError("数据库事务尚未结束，不能判定项目改名结果。")
             directory = safe_path(root, _JOURNALS)
             if directory.exists() and not directory.is_dir():
                 raise ValueError("项目改名清单路径已被占用。")
@@ -260,9 +264,9 @@ def _update_paths(db, connection, project_id, before, after):
             )
 
 
-def _update_model_grants(db, connection, previous, updated):
-    model_names = {row["name"] for row in db.query("SELECT name FROM project_models")}
-    for row in db.query("SELECT id,project_permissions FROM users"):
+def _update_model_grants(permissions, previous, updated):
+    model_names = permissions.model_names()
+    for row in permissions.user_store.all():
         try:
             grants = parse_project_permissions(row["project_permissions"], model_names)
         except (TypeError, ValueError) as error:
@@ -270,13 +274,12 @@ def _update_model_grants(db, connection, previous, updated):
         if any(previous in names for names in grants.values()):
             for permission, names in grants.items():
                 grants[permission] = sorted(updated if name == previous else name for name in names)
-            connection.execute(
-                "UPDATE users SET project_permissions=? WHERE id=?",
-                (json.dumps(grants, ensure_ascii=False), row["id"]),
+            permissions.user_store.update(
+                row["id"], {"project_permissions": json.dumps(grants, ensure_ascii=False)}
             )
 
 
-def _rename_sql(db, files, connection, original, before, after, *, model):
+def _rename_sql(db, permissions, files, connection, original, before, after, *, model):
     if model:
         if db.one("SELECT id FROM project_models WHERE name=?", (after[0],)) is not None:
             raise HubError("PROJECT_EXISTS", "目标型号已存在，不能合并型号。")
@@ -292,10 +295,10 @@ def _rename_sql(db, files, connection, original, before, after, *, model):
         new_location = [after[0], row["version"]] if model else after
         _update_paths(db, connection, row["id"], old_location, new_location)
     if model:
-        _update_model_grants(db, connection, before[0], after[0])
+        _update_model_grants(permissions, before[0], after[0])
 
 
-def update_project(settings, db, files, identifier, changes, *, model):
+def update_project(settings, db, permissions, files, identifier, changes, *, model):
     """修改型号或版本资料。涉及改名时，目录及关联路径同时发布。"""
     if model:
         original = db.one("SELECT * FROM project_models WHERE name=?", (identifier,))
@@ -322,11 +325,11 @@ def update_project(settings, db, files, identifier, changes, *, model):
     description = changes.get("description", original["description"])
     path = manifest = None
     try:
-        with db.transaction() as connection:
+        with permissions.user_store.transaction() as connection:
             if new_value != old_value:
                 before = [old_value] if model else [original["name"], old_value]
                 after = [new_value] if model else [original["name"], new_value]
-                _rename_sql(db, files, connection, original, before, after, model=model)
+                _rename_sql(db, permissions, files, connection, original, before, after, model=model)
                 directories = _plan_directories(settings, before, after)
                 path = _journal_file(settings, kind, original["id"])
                 manifest = {

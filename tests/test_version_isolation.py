@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 SCOPES = (("M910", "high"), ("M910", "low"), ("M920", "high"))
 CONTENTS = (b'{"scope":"M910-high"}', b'{"scope":"M910-low"}', b'{"scope":"M920-high"}')
-CURVE_FIELDS = {"curve_type": "thermal", "description": "version isolation"}
+CURVE_FIELDS = {"curve_name": "test", "curve_type": "thermal", "description": "version isolation"}
 
 
 @pytest.fixture
@@ -20,23 +20,28 @@ def isolated_hub(tmp_path):
     from projecthub.files import FileService
     from projecthub.permissions import Permissions
     from projecthub.projects import ProjectService
+    from projecthub.users import UserStore
 
     settings = resolve_settings(AppConfig(project_root=tmp_path))
     db = Database(settings)
-    permissions = Permissions(db)
+    cache = UserStore(db)
+    permissions = Permissions(db, cache)
     files = FileService(settings, db, permissions)
     projects = ProjectService(settings, db, permissions, files)
-    db.open(initialize=files.scan_initial)
     try:
+        db.open(initialize=files.scan_initial)
+        cache.initialize()
+        permissions.validate()
         projects.initialize()
         files.initialize()
-        actor = {"user_id": db.one("SELECT id FROM users WHERE is_admin=1")["id"]}
+        actor = {"user_id": next(row["id"] for row in cache.all() if row["is_admin"])}
         for name in dict.fromkeys(name for name, _ in SCOPES):
             projects.create_project_model(name, actor=actor)
         versions = [projects.create_project_version(name, version, actor=actor) for name, version in SCOPES]
         yield files, actor, versions
     finally:
         files.close()
+        cache.close()
         db.close()
 
 
@@ -212,7 +217,7 @@ def test_http_same_name_files_and_cross_version_references(tmp_path):
 
     app = create_app(AppConfig(project_root=tmp_path))
     with TestClient(app) as client:
-        admin = app.state.db.one("SELECT name,password FROM users WHERE is_admin=1")
+        admin = next(row for row in app.state.permissions.user_store.all() if row["is_admin"])
         client.headers.update(
             {"X-User-Name": quote(admin["name"], safe=""), "X-Password": quote(admin["password"], safe="")}
         )

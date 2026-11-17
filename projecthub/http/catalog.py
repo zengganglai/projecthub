@@ -279,7 +279,8 @@ async def version_config(request: Request, project: Version, actor: Actor):
 
 @catalog.get(
     f"{VERSION_PATH}/curves/template",
-    summary="读取项目曲线模板",
+    summary="读取型号共享曲线模板",
+    description="读取当前版本所属型号目录下的 模板.json，同一型号的所有版本共用。",
     dependencies=[Depends(curve_permission)],
     responses=PERMISSION_DOCS,
 )
@@ -287,6 +288,20 @@ async def curve_template(request: Request, actor: Actor, project: Version):
     return respond(
         request,
         await run_blocking(request.app.state.files.catalog.read_curve_template, project["id"], actor=actor),
+    )
+
+
+@catalog.get(
+    f"{VERSION_PATH}/curves/names",
+    summary="获取版本下已发布曲线的名称列表",
+    description="名称按原值去重并排序，只包含已审核发布曲线，要求当前型号的 curve.read 权限。",
+    dependencies=[Depends(curve_permission)],
+    responses=PERMISSION_DOCS,
+)
+async def curve_names(request: Request, actor: Actor, project: Version):
+    return respond(
+        request,
+        await run_blocking(request.app.state.files.catalog.list_curve_names, project["id"], actor=actor),
     )
 
 
@@ -342,16 +357,7 @@ async def signed_file_json(request: Request, actor: Actor, project: Version, cat
         file_reference=True,
         field_message="data 必须且只能包含 file_id。",
     )
-    return respond(
-        request,
-        await run_blocking(
-            request.app.state.files.catalog.read_json,
-            data["file_id"],
-            category,
-            project["id"],
-            actor=actor,
-        ),
-    )
+    return await file_json(request, actor, project, category, data["file_id"])
 
 
 @catalog.get(
@@ -377,6 +383,7 @@ async def download(request: Request, actor: Actor, project: Version, category: s
 @catalog.get(
     FILES,
     summary="获取项目分类文件列表",
+    description="curve 分类支持可选 curve_name 子串匹配，名称包含输入内容即可；可与其他筛选条件同时使用。",
     dependencies=[Depends(download_permission)],
     responses=PERMISSION_DOCS,
 )
@@ -386,6 +393,7 @@ async def list_files(
     project: Version,
     category: str,
     file_name: str | None = None,
+    curve_name: str | None = None,
     file_type: str | None = None,
     q: str | None = None,
     sha256: str | None = None,
@@ -397,6 +405,7 @@ async def list_files(
         category=category,
         actor=actor,
         file_name=file_name,
+        curve_name=curve_name,
         file_type=file_type,
         q=q,
         sha256=sha256,

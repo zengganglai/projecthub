@@ -14,6 +14,9 @@ _TRACE = re.compile(rb"[A-Za-z0-9._-]{1,128}")
 
 
 def readiness(state) -> tuple[bool, str]:
+    user_store = getattr(state, "user_store", None)
+    if state.ready and user_store is not None and not user_store.ready:
+        return False, "users_not_ready"
     if state.ready and getattr(getattr(state, "files", None), "recovery_required", False):
         return False, "review_recovery_required"
     return state.ready, state.reason

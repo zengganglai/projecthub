@@ -80,7 +80,7 @@ class DownloadAuthorizations:
             code = authorization_code.lower()
             if files.db.one("SELECT id FROM download_authorizations WHERE authorization_code=?", (code,)):
                 raise HubError("AUTHORIZATION_CODE_EXISTS", "授权编码已被占用。")
-            user = files.db.one("SELECT name FROM users WHERE id=?", (actor["user_id"],))
+            user = files.permissions.user_store.get(actor["user_id"])
             identifier = connection.execute(
                 "INSERT INTO download_authorizations(created_by,authorization_code,project_id,path,expires_at,sha256,device_code) VALUES(?,?,?,?,?,?,?)",
                 (user["name"], code, project_id, path, expiration, row["sha256"], device_code),
